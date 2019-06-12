@@ -19,7 +19,7 @@ my %errorArgs = ();
 
 my $debug=0;
 
-while(<>) {
+while(<STDIN>) {
 
 	if ( m/$chkRE/ ) {
 
