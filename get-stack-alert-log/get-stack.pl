@@ -2,7 +2,6 @@
 
 use warnings;
 use strict;
-use Data::Dumper;
 
 my $startOfStack=0;
 my $startOfSQL=0;
@@ -18,9 +17,21 @@ my $chkRE = qq[$ora600|$ora7445];
 
 my %errorArgs = ();
 
-my $debug=0;
+my $debug=1;
 
-while(<>) {
+my $m = Module::Detect->new(
+	{
+		'Dumper' => {
+			Name => 'Data::Dumper',
+			Action => sub{eval 'return Dumper(@_)'},
+		},
+	}
+);
+
+my $dumper = $m->getSub('Dumper');
+#print 'Dumping $m: ' . &$dumper($m) . "\n";
+
+while(<STDIN>) {
 
 	if ( m/$chkRE/ ) {
 
@@ -87,7 +98,7 @@ my @stack = ();
 my $remainder=0;
 my $call;
 
-print 'Rawstack: ' , Dumper(\@rawStack) if $debug;
+print 'Rawstack: ' , &$dumper(\@rawStack) if $debug;
 
 #exit;
 
@@ -136,7 +147,7 @@ foreach my $el ( 0 .. $#rawStack ) {
 # process split  lines - those not ending in ()
 # the rest of the line probably is the line following
 
-print Dumper(\@stack) if $debug;
+print &$dumper(\@stack) if $debug;
 
 print "\nSQL_ID $sqlID\n\n@SQL\n";
 
@@ -147,7 +158,7 @@ foreach my $val ( @stack ) {
 }
 print "\n";
 
-print Dumper (\%errorArgs) if $debug;
+print &$dumper (\%errorArgs) if $debug;
 
 print "\n\nArguments: \n";
 
@@ -159,6 +170,70 @@ foreach my $errCode ( sort keys %errorArgs ) {
 }
 
 
-print Dumper(\@SQL) if $debug;
+print &$dumper(\@SQL) if $debug;
 
 print "\n";
+
+######################### Module::Detect Package ########################
+
+
+
+BEGIN {
+
+	package Module::Detect;
+
+	#use Exporter qw(import);
+	our $VERSION=0.1;
+	# export subs as needed
+	our @EXPORT = qw();
+	our @ISA=qw(Exporter);
+
+	my %subs=();
+
+	sub new {
+		my $pkg   = shift;
+		my $class = ref($pkg) || $pkg;
+		my ($href) = @_;
+
+		my $self = {
+			MODULES => $href,
+		};
+
+		foreach my $module (keys %{$self->{MODULES}} ) {
+	
+			eval "use " .  $self->{MODULES}{$module}->{Name};
+
+			if($@){
+				$module=~/\w+\W(\S+)/;
+				$subs{$module}=sub{return "$module is not installed"};
+			}else{
+				no warnings;
+				$Data::Dumper::Terse=1;
+				use warnings;
+				$subs{$module}=$self->{MODULES}{$module}->{Action};
+				;
+			}
+		}
+
+		$self->{SUBS} = \%subs;
+
+		my $retval = bless $self, $class;
+		return $retval;
+	}
+
+	sub getSub {
+		my $self = shift;
+		my ($subRef) = @_;
+		if ( defined ( $self->{SUBS}{$subRef} )  ) {
+			return $self->{SUBS}{$subRef};
+		} else {
+			return sub{return 'sub not defined'};
+		}
+	}
+
+}
+
+
+
+
+
