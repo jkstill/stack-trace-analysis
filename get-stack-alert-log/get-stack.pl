@@ -17,7 +17,7 @@ my $chkRE = qq[$ora600|$ora7445];
 
 my %errorArgs = ();
 
-my $debug=1;
+my $debug=0;
 
 my $m = Module::Detect->new(
 	{
